@@ -1,0 +1,94 @@
+.carousel-slide-inner {
+  position: relative;
+  min-height: 300px;
+  padding: 2rem;
+  background-size: cover;
+  background-position: center;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  color: white;
+  transition: transform 0.3s ease;
+}
+
+.carousel-slide-inner.clickable:hover {
+  transform: scale(1.02);
+}
+
+.carousel-slide-inner p:empty {
+  display: none;
+}
+.carousel-slide-inner > * {
+  position: relative;
+  z-index: 2;
+}
+.carousel-slide-inner::before {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(to top, rgba(0, 0, 0, 0.7), transparent);
+  z-index: 1;
+  content: "";
+}
+.carousel-button {
+  display: inline-block;
+  align-self: flex-start;
+  padding: 0.5rem 1rem;
+  background-color: rgba(255, 255, 255, 0.15);
+  color: #fff !important;
+  border: 1px solid #fff;
+  border-radius: 4px;
+  text-decoration: none !important;
+  transition: background-color 0.3s ease, color 0.3s ease;
+  text-shadow: none !important;
+}
+.carousel-button:hover {
+  background-color: #fff;
+  color: #000 !important;
+}
+
+.effective-date {
+  font-size: 0.9rem;
+  font-style: italic;
+  opacity: 0.9;
+  margin-top: 0.5rem;
+  margin-bottom: 1rem;
+}
+
+.embla.align-left .carousel-slide-inner {
+  text-align: left;
+  align-items: flex-start;
+}
+
+.embla.align-center .carousel-slide-inner {
+  text-align: center;
+  align-items: center;
+}
+
+.embla.align-right .carousel-slide-inner {
+  text-align: right;
+  align-items: flex-end;
+}
+
+
+.embla.align-left .carousel-button {
+  margin-left: 0;
+  margin-right: auto;
+}
+
+.embla.align-center .carousel-button {
+  margin-left: auto;
+  margin-right: auto;
+}
+
+.embla.align-right .carousel-button {
+  margin-left: auto;
+  margin-right: 0;
+}
+
+.embla.full-width {
+  right: 0;
+  left: 0;
+  width: 100% !important;
+  margin-right: 0;
+  margin-left: 0;
+}
