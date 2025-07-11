@@ -28,6 +28,12 @@ import './carousel.css';
 const getHref = (link) => {
   const item = Array.isArray(link) ? link[0] : link;
   if (!item || typeof item !== 'object') return '#';
+  
+  // For Link content types, check if they have a remoteUrl (external link)
+  if (item['@type'] === 'Link' && item.remoteUrl) {
+    return item.remoteUrl;
+  }
+  
   const url = item['@id'] || '';
   const isFile = item['@type'] === 'File';
   return url ? (isFile ? `${url}/@@download/file` : url) : '#';
@@ -62,6 +68,17 @@ const Edit = (props) => {
     }
     
     return '';
+  };
+
+  // Function to get image for listing items based on content type
+  const getListingImageUrl = (item) => {
+    // If the item itself is an Image content type, use it directly
+    if (item['@type'] === 'Image') {
+      return `${item['@id']}/@@images/image`;
+    }
+    
+    // Otherwise, look for associated images
+    return getImageUrl(item);
   };
 
   // Function to format effective date
@@ -117,40 +134,64 @@ const Edit = (props) => {
   // Effect to fetch listing data when using listing mode
   useEffect(() => {
     if (data.useListing && data.query) {
-      const searchOptions = {
-        sort_on: data.sortOn || 'sortable_title',
-        sort_order: data.sortOrder || 'ascending',
+      // Base metadata we always need
+      const baseOptions = {
         metadata_fields: [
           'title', 
           'description', 
           'image_field',
           'image_scales',
-          'effective'
+          'effective',
+          'remoteUrl'
         ],
       };
 
-      if (data.limit) {
-        searchOptions.b_size = data.limit;
-      }
+      let searchOptions;
+      let searchTerm = '';
 
       // Handle different query formats
       if (typeof data.query === 'object' && data.query !== null) {
-        const { query, ...otherParams } = data.query;
-        Object.assign(searchOptions, otherParams);
-        
-        if (query && Array.isArray(query)) {
-          searchOptions.query = query;
+        // Check if this is a querystring widget format with query array
+        if (data.query.query && Array.isArray(data.query.query)) {
+          // Transform querystring format to what Plone search expects
+          const transformedQuery = {};
+          
+          data.query.query.forEach(criterion => {
+            if (criterion.i === 'portal_type') {
+              transformedQuery.portal_type = criterion.v;
+            } else if (criterion.i === 'path') {
+              transformedQuery.path = criterion.v;
+            } else if (criterion.i === 'Subject') {
+              transformedQuery.Subject = criterion.v;
+            } else if (criterion.i === 'review_state') {
+              transformedQuery.review_state = criterion.v;
+            }
+            // Add more mappings as needed
+          });
+          
+          // Add sorting and other options
+          if (data.query.sort_on) {
+            transformedQuery.sort_on = data.query.sort_on;
+          }
+          if (data.query.sort_order) {
+            transformedQuery.sort_order = data.query.sort_order;
+          }
+          
+          searchOptions = { ...transformedQuery, ...baseOptions };
+        } else {
+          // Use the query object as-is and merge with base options
+          searchOptions = { ...data.query, ...baseOptions };
         }
-        
-        dispatch(searchContent('', searchOptions, block));
       } else if (typeof data.query === 'string') {
-        dispatch(searchContent(data.query, searchOptions, block));
+        searchTerm = data.query;
+        searchOptions = baseOptions;
       } else {
-        searchOptions.query = data.query;
-        dispatch(searchContent('', searchOptions, block));
+        searchOptions = { ...baseOptions, query: data.query };
       }
+      
+      dispatch(searchContent(searchTerm, searchOptions, block));
     }
-  }, [data.useListing, data.query, data.sortOn, data.sortOrder, data.limit, dispatch, block]);
+  }, [data.useListing, data.query, dispatch, block]);
 
   const isMobile = typeof window !== 'undefined' && window.matchMedia('(max-width: 768px)').matches;
   
@@ -167,7 +208,7 @@ const Edit = (props) => {
   const baseConfig = configOverrides[carouselType] || configOverrides.default;
   const config = { ...baseConfig, ...presetConfig };
 
-  const plugins = data.autoplay ? [Autoplay({ delay: data.autoplayDelay || 4000 })] : [];
+  const plugins = data.autoplay ? [Autoplay({ delay: parseInt(data.autoplayDelay, 10) || 4000, stopOnInteraction: false })] : [];
   const [emblaRef, embla] = useEmblaCarousel({
     ...config,
     align: 'start',
@@ -188,9 +229,9 @@ const Edit = (props) => {
   const renderLink = (slide) => {
     const href = getHref(slide.link);
     const label = slide.buttonText?.trim();
-    if (!href || !label || data.hideButtons) return null;
+    if (!href || !label || data.hideButtons || data.displayMode === 'image-only') return null;
 
-    const isExternal = href.startsWith('http');
+    const isExternal = href.startsWith('http') && !href.includes(window.location.hostname);
 
     return (
       <a
@@ -209,7 +250,7 @@ const Edit = (props) => {
     const href = getHref(slide.link);
     if (!href || href === '#') return;
     
-    const isExternal = href.startsWith('http');
+    const isExternal = href.startsWith('http') && !href.includes(window.location.hostname);
     
     if (isExternal) {
       window.open(href, '_blank', 'noopener,noreferrer');
@@ -260,6 +301,9 @@ const Edit = (props) => {
       : [],
   };
 
+  // Check if we're in image-only mode
+  const isImageOnlyMode = data.displayMode === 'image-only';
+
   return (
     <>
       <div className={`embla ${data.isFullWidth ? 'full-width' : ''} align-${data.alignment || 'left'} ${modeClass} type-${carouselType}`}>
@@ -274,7 +318,7 @@ const Edit = (props) => {
           <div className="embla__container">
             {slides.map((slide, index) => {
               const imageUrl = (data.useListing && searchResults?.items && searchResults.items.length > 0) 
-                ? getImageUrl(slide.link) 
+                ? getListingImageUrl(slide.link) 
                 : (() => {
                     const image = Array.isArray(slide.image) ? slide.image[0] : slide.image;
                     return image?.['@id'] ? `${image['@id']}/@@images/image` : image?.download || '';
@@ -286,19 +330,34 @@ const Edit = (props) => {
               return (
                 <div className="embla__slide" key={index} style={{ flex: `0 0 ${100 / effectiveSlidesToShow}%` }}>
                   <div
-                    className={`carousel-slide-inner ${isClickable ? 'clickable' : ''}`}
+                    className={`carousel-slide-inner ${isClickable ? 'clickable' : ''} ${isImageOnlyMode ? 'image-only' : ''}`}
                     style={{ 
-                      backgroundImage: imageUrl ? `url(${imageUrl})` : 'none',
+                      backgroundImage: !isImageOnlyMode && imageUrl ? `url(${imageUrl})` : 'none',
                       cursor: isClickable ? 'pointer' : 'default'
                     }}
                     onClick={() => handleSlideClick(slide)}
                   >
-                    <h3>{slide.heading}</h3>
-                    <p>{slide.content}</p>
-                    {data.showEffectiveDate && slide.effectiveDate && (
-                      <p className="effective-date">{formatEffectiveDate(slide.effectiveDate)}</p>
+                    {isImageOnlyMode ? (
+                      imageUrl ? (
+                        <img 
+                          src={imageUrl} 
+                          alt={slide.heading || 'Slide image'} 
+                        />
+                      ) : (
+                        <div className="image-placeholder">
+                          No image
+                        </div>
+                      )
+                    ) : (
+                      <>
+                        <h3>{slide.heading}</h3>
+                        <p>{slide.content}</p>
+                        {data.showEffectiveDate && slide.effectiveDate && (
+                          <p className="effective-date">{formatEffectiveDate(slide.effectiveDate)}</p>
+                        )}
+                        {renderLink(slide)}
+                      </>
                     )}
-                    {renderLink(slide)}
                   </div>
                 </div>
               );

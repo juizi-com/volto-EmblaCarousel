@@ -31,36 +31,14 @@ export function emblaListingSchemaEnhancer(schema, formData = {}, intl) {
   };
 
   if (useListing) {
-    // Add listing-specific fields
-    const listingFields = ['query', 'sortOn', 'sortOrder', 'limit'];
-    listingFields.forEach(field => {
-      if (!schema.fieldsets[0].fields.includes(field)) {
-        schema.fieldsets[0].fields.push(field);
-      }
-    });
+    // Only add the query field - let querystring widget handle sorting and limits
+    if (!schema.fieldsets[0].fields.includes('query')) {
+      schema.fieldsets[0].fields.push('query');
+    }
 
     schema.properties.query = {
-      title: 'Query',
+      title: 'Search criteria',
       widget: 'querystring',
-    };
-    schema.properties.sortOn = {
-      title: 'Sort on',
-      type: 'string',
-      default: 'sortable_title',
-    };
-    schema.properties.sortOrder = {
-      title: 'Sort order',
-      type: 'string',
-      choices: [
-        ['ascending', 'Ascending'],
-        ['descending', 'Descending'],
-      ],
-      default: 'ascending',
-    };
-    schema.properties.limit = {
-      title: 'Limit',
-      type: 'number',
-      default: 5,
     };
 
     // Remove slides field when using listing
@@ -69,7 +47,7 @@ export function emblaListingSchemaEnhancer(schema, formData = {}, intl) {
     );
   } else {
     // Remove listing fields when not using listing
-    const listingFields = ['query', 'sortOn', 'sortOrder', 'limit'];
+    const listingFields = ['query'];
     schema.fieldsets[0].fields = schema.fieldsets[0].fields.filter(
       (field) => !listingFields.includes(field)
     );

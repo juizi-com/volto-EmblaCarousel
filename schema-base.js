@@ -7,6 +7,7 @@ const emblaCarouselSchema = () => ({
       fields: [
         'slides',
         'slidesToShow',
+        'displayMode',
         'autoplay',
         'autoplayDelay',
         'alignment',
@@ -63,6 +64,15 @@ const emblaCarouselSchema = () => ({
         },
         required: [],
       },
+    },
+    displayMode: {
+      title: 'Display mode',
+      type: 'string',
+      choices: [
+        ['full', 'Full (image + text)'],
+        ['image-only', 'Image only'],
+      ],
+      default: 'full',
     },
     alignment: {
       title: 'Text alignment',
