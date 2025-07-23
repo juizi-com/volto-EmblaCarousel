@@ -17,6 +17,9 @@ const emblaCarouselSchema = () => ({
         'hideDots',
         'hideButtons',
         'clickableSlides',
+        'hideDescription',
+        'showEffectiveDate',
+        'equalHeight',
       ],
     },
   ],
@@ -104,6 +107,26 @@ const emblaCarouselSchema = () => ({
       type: 'number',
       default: 8000,
     },
+    clickableSlides: {
+      title: 'Make slides clickable',
+      type: 'boolean',
+      default: false,
+    },
+    hideDescription: {
+      title: 'Hide description/content',
+      type: 'boolean',
+      default: false,
+    },
+    equalHeight: {
+      title: 'Make all slides equal height',
+      type: 'boolean',
+      default: false,
+    },
+    showEffectiveDate: {
+      title: 'Show effective date',
+      type: 'boolean',
+      default: false,
+    },
     hideArrows: {
       title: 'Hide arrows',
       type: 'boolean',
@@ -117,13 +140,13 @@ const emblaCarouselSchema = () => ({
       type: 'boolean',
       default: false,
     },
-    clickableSlides: {
-      title: 'Make slides clickable',
+    appendManualSlides: {
+      title: 'Append manual slides',
+      description: 'Add manual slides after the listing results',
       type: 'boolean',
       default: false,
     },
   },
   required: [],
 });
-
 export default emblaCarouselSchema;

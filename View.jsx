@@ -84,14 +84,28 @@ const EmblaCarousel = ({ data, id }) => {
     link: item,
     buttonText: data.listingButtonText || 'Read more',
     effectiveDate: item.effective || null,
+    isFromListing: true, // Flag to identify listing slides
   });
 
-  // Get slides based on listing mode or manual slides
+  // Get slides: listing results first, then manual slides if appendManualSlides is enabled
   const getSlides = () => {
+    let slides = [];
+    
+    // Add listing results first
     if (data.useListing && searchResults?.items && searchResults.items.length > 0) {
-      return searchResults.items.map(convertItemToSlide);
+      slides = searchResults.items.map(convertItemToSlide);
     }
-    return data.slides || [];
+    
+    // Add manual slides if not using listing OR if using listing with appendManualSlides enabled
+    if (!data.useListing || (data.useListing && data.appendManualSlides)) {
+      const manualSlides = (data.slides || []).map(slide => ({
+        ...slide,
+        isFromListing: false
+      }));
+      slides = slides.concat(manualSlides);
+    }
+    
+    return slides;
   };
 
   const slides = getSlides();
@@ -149,7 +163,7 @@ const EmblaCarousel = ({ data, id }) => {
             // Add more mappings as needed
           });
           
-          // Add sorting and other options
+          // Add sorting and other options from the querystring widget
           if (data.query.sort_on) {
             transformedQuery.sort_on = data.query.sort_on;
           }
@@ -157,10 +171,20 @@ const EmblaCarousel = ({ data, id }) => {
             transformedQuery.sort_order = data.query.sort_order;
           }
           
+          // This is the key fix - use the limit from querystring widget
+          if (data.query.limit) {
+            transformedQuery.b_size = parseInt(data.query.limit, 10);
+          }
+          
           searchOptions = { ...transformedQuery, ...baseOptions };
         } else {
           // Use the query object as-is and merge with base options
           searchOptions = { ...data.query, ...baseOptions };
+          
+          // Also handle limit if it's in the direct query object
+          if (data.query.limit) {
+            searchOptions.b_size = parseInt(data.query.limit, 10);
+          }
         }
       } else if (typeof data.query === 'string') {
         searchTerm = data.query;
@@ -256,6 +280,7 @@ const EmblaCarousel = ({ data, id }) => {
   const scrollNext = () => embla && embla.scrollNext();
   const scrollTo = (index) => embla && embla.scrollTo(index);
 
+  const heightClass = data.equalHeight ? 'equal-height' : '';
   const modeClass = data.mode ? `mode-${data.mode}` : '';
   const showArrows = data.hideArrows !== true && slides.length > 1;
   const showDots = data.hideDots !== true && slides.length > 0;
@@ -264,7 +289,7 @@ const EmblaCarousel = ({ data, id }) => {
   const isImageOnly = data.displayMode === 'image-only';
 
   return (
-    <div className={`embla ${data.isFullWidth ? 'full-width' : ''} align-${data.alignment || 'left'} ${modeClass} type-${carouselType}`}>
+    <div className={`embla ${heightClass} ${data.isFullWidth ? 'full-width' : ''} align-${data.alignment || 'left'} ${modeClass} type-${carouselType}`}>
       {showArrows && slides.length > 1 && (
         <>
           <button className="embla__prev" onClick={scrollPrev}>‹</button>
@@ -275,7 +300,8 @@ const EmblaCarousel = ({ data, id }) => {
       <div className="embla__viewport" ref={viewportRef}>
         <div className="embla__container">
           {slides.map((slide, index) => {
-            const imageUrl = (data.useListing && searchResults?.items && searchResults.items.length > 0) 
+            // Handle image URL based on slide source
+            const imageUrl = slide.isFromListing
               ? getListingImageUrl(slide.link) 
               : (() => {
                   const image = Array.isArray(slide.image) ? slide.image[0] : slide.image;
@@ -288,7 +314,7 @@ const EmblaCarousel = ({ data, id }) => {
             return (
               <div className="embla__slide" key={index} style={{ flex: `0 0 ${100 / effectiveSlidesToShow}%` }}>
                 <div
-                  className={`carousel-slide-inner ${isClickable ? 'clickable' : ''} ${isImageOnly ? 'image-only' : ''}`}
+                  className={`carousel-slide-inner ${isClickable ? 'clickable' : ''} ${isImageOnly ? 'image-only' : ''} ${slide.isFromListing ? 'listing-slide' : 'manual-slide'}`}
                   style={{ 
                     backgroundImage: !isImageOnly && imageUrl ? `url(${imageUrl})` : 'none',
                     cursor: isClickable ? 'pointer' : 'default'
@@ -309,7 +335,7 @@ const EmblaCarousel = ({ data, id }) => {
                   ) : (
                     <>
                       <h3>{slide.heading}</h3>
-                      <p>{slide.content}</p>
+                      {!data.hideDescription && <p>{slide.content}</p>}
                       {data.showEffectiveDate && slide.effectiveDate && (
                         <p className="effective-date">{formatEffectiveDate(slide.effectiveDate)}</p>
                       )}

@@ -1,6 +1,7 @@
 export function emblaListingSchemaEnhancer(schema, formData = {}, intl) {
   const useListing = formData?.useListing;
-  console.log('✅ enhancer called, useListing =', useListing);
+  const appendManualSlides = formData?.appendManualSlides;
+  console.log('✅ enhancer called, useListing =', useListing, 'appendManualSlides =', appendManualSlides);
 
   // Make sure we have fieldsets
   if (!schema.fieldsets || !schema.fieldsets[0]) {
@@ -19,35 +20,42 @@ export function emblaListingSchemaEnhancer(schema, formData = {}, intl) {
     default: false,
   };
 
-  // Add showEffectiveDate field if not already present
-  if (!schema.fieldsets[0].fields.includes('showEffectiveDate')) {
-    schema.fieldsets[0].fields.push('showEffectiveDate');
-  }
-
-  schema.properties.showEffectiveDate = {
-    title: 'Show effective date',
-    type: 'boolean',
-    default: false,
-  };
-
   if (useListing) {
-    // Only add the query field - let querystring widget handle sorting and limits
-    if (!schema.fieldsets[0].fields.includes('query')) {
-      schema.fieldsets[0].fields.push('query');
-    }
+    // Add listing-specific fields
+    const listingFields = ['query', 'appendManualSlides'];
+    
+    listingFields.forEach(field => {
+      if (!schema.fieldsets[0].fields.includes(field)) {
+        schema.fieldsets[0].fields.push(field);
+      }
+    });
 
     schema.properties.query = {
       title: 'Search criteria',
       widget: 'querystring',
     };
 
-    // Remove slides field when using listing
-    schema.fieldsets[0].fields = schema.fieldsets[0].fields.filter(
-      (field) => field !== 'slides'
-    );
+    schema.properties.appendManualSlides = {
+      title: 'Append manual slides',
+      description: 'Add manual slides after the listing results',
+      type: 'boolean',
+      default: false,
+    };
+
+    // Only show slides field if appendManualSlides is enabled
+    if (appendManualSlides) {
+      if (!schema.fieldsets[0].fields.includes('slides')) {
+        schema.fieldsets[0].fields.push('slides');
+      }
+    } else {
+      // Remove slides field when not appending manual slides
+      schema.fieldsets[0].fields = schema.fieldsets[0].fields.filter(
+        (field) => field !== 'slides'
+      );
+    }
   } else {
     // Remove listing fields when not using listing
-    const listingFields = ['query'];
+    const listingFields = ['query', 'appendManualSlides'];
     schema.fieldsets[0].fields = schema.fieldsets[0].fields.filter(
       (field) => !listingFields.includes(field)
     );
